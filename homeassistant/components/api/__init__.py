@@ -192,11 +192,16 @@ class APIStatesView(HomeAssistantView):
     def get(self, request):
         """Get current states."""
         user = request["hass_user"]
+        states = (
+            map(request.app["hass"].states.get, request.query.getall("entity_id"))
+            if "entity_id" in request.query
+            else request.app["hass"].states.async_all()
+        )
         entity_perm = user.permissions.check_entity
         states = [
             state
-            for state in request.app["hass"].states.async_all()
-            if entity_perm(state.entity_id, "read")
+            for state in states
+            if state is not None and entity_perm(state.entity_id, "read")
         ]
         return self.json(states)
 

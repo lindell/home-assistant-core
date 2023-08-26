@@ -583,6 +583,47 @@ async def test_states_view_filters(
     assert json[0]["entity_id"] == "test.entity"
 
 
+async def test_states_with_ids(
+    hass: HomeAssistant, mock_api_client: TestClient
+) -> None:
+    """Test if the debug interface allows us to get a set list of state entities."""
+    hass.states.async_set("test.entity", "hello")
+    hass.states.async_set("test.entity_2", "hello_2")
+    hass.states.async_set("test.entity_3", "hello_3")
+    resp = await mock_api_client.get(
+        const.URL_API_STATES + "?entity_id=test.entity&entity_id=test.entity_2"
+    )
+    assert resp.status == HTTPStatus.OK
+    json = await resp.json()
+    assert len(json) == 2
+    remote_data = [ha.State.from_dict(item) for item in json]
+
+    state1 = hass.states.get("test.entity")
+    state2 = hass.states.get("test.entity_2")
+
+    assert remote_data[0].state == state1.state
+    assert remote_data[0].last_changed == state1.last_changed
+    assert remote_data[0].attributes == state1.attributes
+    assert remote_data[1].state == state2.state
+    assert remote_data[1].last_changed == state2.last_changed
+    assert remote_data[1].attributes == state2.attributes
+
+
+async def test_states_with_ids_not_found(
+    hass: HomeAssistant, mock_api_client: TestClient
+) -> None:
+    """Test if the debug interface allows us to get a set list of state entities."""
+    hass.states.async_set("test.entity", "hello")
+    hass.states.async_set("test.entity_3", "hello_3")
+    resp = await mock_api_client.get(
+        const.URL_API_STATES + "?entity_id=test.entity&entity_id=test.entity_2"
+    )
+    assert resp.status == HTTPStatus.OK
+    json = await resp.json()
+    assert len(json) == 1
+    assert json[0]["entity_id"] == "test.entity"
+
+
 async def test_get_entity_state_read_perm(
     hass: HomeAssistant, mock_api_client: TestClient, hass_admin_user: MockUser
 ) -> None:
